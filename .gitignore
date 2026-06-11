@@ -6,3 +6,10 @@
 /widget.o
 /xfm
 /xfm.o
+/main.o
+/src/dir.o
+/src/drop.o
+/src/icons.o
+/src/thumb.o
+/src/util.o
+/src/widget.o
