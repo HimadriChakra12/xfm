@@ -15,13 +15,13 @@
 #include <unistd.h>
 
 #include "config.h"
-#include "fm.h"
-#include "util.h"
-#include "widget.h"
-#include "icons.h"
-#include "dir.h"
-#include "thumb.h"
-#include "drop.h"
+#include "src/fm.h"
+#include "src/util.h"
+#include "src/widget.h"
+#include "src/icons.h"
+#include "src/dir.h"
+#include "src/thumb.h"
+#include "src/drop.h"
 
 /* ── Open a regular file with the configured opener ─────────── */
 

@@ -15,12 +15,12 @@ DEBUG_PROG = ${PROG:=_dbg}
 
 OBJS = \
 	main.o \
-	dir.o \
-	thumb.o \
-	drop.o \
-	widget.o \
-	util.o \
-	icons.o \
+	src/dir.o \
+	src/thumb.o \
+	src/drop.o \
+	src/widget.o \
+	src/util.o \
+	src/icons.o \
 	control/dragndrop.o \
 	control/selection.o \
 	control/font.o
