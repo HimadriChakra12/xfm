@@ -1,6 +1,6 @@
 .SUFFIXES: .c .o .dbg
 
-PROG = xfiles
+PROG = xfm
 
 DEBUG_PROG = ${PROG:=_dbg}
 

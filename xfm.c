@@ -27,8 +27,8 @@
 #define DROPASK         "drop-ask"
 #define MENU            "menu"
 
-#define APPCLASS        "XFiles"
-#define APPNAME         "xfiles"
+#define APPCLASS        "Xfm"
+#define APPNAME         "xfm"
 #define MAX_RESOURCES   32      /* actually 31, the last must be NULL */
 #define URI_PREFIX      "file://"
 #define INCRSIZE        512

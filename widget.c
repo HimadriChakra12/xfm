@@ -3454,10 +3454,10 @@ widget_create(const char *class, const char *name, int argc, char *argv[], const
 	})
 	*widget = (Widget){
 		.class = class,
-		.colors[SELECT_NOT][COLOR_BG].chans = COLOR(00,00,00),
-		.colors[SELECT_NOT][COLOR_FG].chans = COLOR(FF,FF,FF),
-		.colors[SELECT_YES][COLOR_BG].chans = COLOR(34,65,A4),
-		.colors[SELECT_YES][COLOR_FG].chans = COLOR(FF,FF,FF),
+		.colors[SELECT_NOT][COLOR_BG].chans = COLOR(1D,20,21),
+		.colors[SELECT_NOT][COLOR_FG].chans = COLOR(E9,DA,B1),
+		.colors[SELECT_YES][COLOR_BG].chans = COLOR(28,28,28),
+		.colors[SELECT_YES][COLOR_FG].chans = COLOR(BA,AD,8F),
 		.status_enable = True,
 		.opacity = 0xFFFF,
 		.lock = PTHREAD_MUTEX_INITIALIZER,
