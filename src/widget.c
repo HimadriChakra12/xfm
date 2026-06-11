@@ -32,6 +32,7 @@
 #include "icons.h"
 #include "util.h"
 #include "widget.h"
+#include "../config.h"
 
 #define ATOMS                                   \
 	X(TEXT, NULL)                           \
@@ -65,9 +66,6 @@
 	X(BARSTATUS, "EnableStatusBar",  "enableStatusBar")   \
 	X(OPACITY,   "Opacity",          "opacity")
 
-#define STATUSBAR_HEIGHT(w) ((w)->fonth * 2)
-#define STATUSBAR_MARGIN(w) ((w)->fonth / 2)
-
 enum {
 	XEMBED_EMBEDDED_NOTIFY,
 	XEMBED_WINDOW_ACTIVATE,
@@ -90,29 +88,6 @@ enum {
 	XEMBED_FOCUS_CURRENT,
 	XEMBED_FOCUS_FIRST,
 	XEMBED_FOCUS_LAST,
-};
-
-enum {
-	/* hardcoded object sizes in pixels */
-	/* there's no ITEM_HEIGHT for it is computed at runtime from font height */
-	THUMBSIZE       = 64,                   /* maximum thumbnail size */
-	ICON_MARGIN     = (THUMBSIZE / 2),      /* margin around item icon */
-	ITEM_WIDTH      = (THUMBSIZE * 2),      /* width of an item (icon + margins) */
-	MARGIN          = 16,                   /* top margin above first row */
-
-	/* draw up to NLINES lines of label; each one up to LABELWIDTH pixels long */
-	NLINES          = 2,                    /* change it for more lines below icons */
-	LABELWIDTH      = ITEM_WIDTH - 16,      /* save 8 pixels each side around label */
-
-	/* times in milliseconds */
-	DOUBLECLICK     = 250,                  /* time of a doubleclick, in milliseconds */
-	SCROLL_TIME     = 128,
-
-	/* scrolling */
-	SCROLL_STEP     = 32,                   /* pixels per scroll */
-	SCROLLER_SIZE   = 32,                   /* size of the scroller */
-	SCROLLER_MIN    = 16,                   /* min lines to scroll for the scroller to change */
-	HANDLE_MAX_SIZE = (SCROLLER_SIZE - 4),  /* max size of the scroller handle */
 };
 
 enum {
@@ -328,9 +303,6 @@ struct Options {
 };
 
 static Atom atoms[NATOMS];
-
-/* ellipsis has two dots rather than three; the third comes from the extension */
-static char const *ELLIPSIS = "..";
 
 static int
 error_handler(Display *display, XErrorEvent *error)
@@ -788,7 +760,7 @@ calcsize(Widget *widget, int w, int h)
 static int
 isbreakable(char c)
 {
-	return c == '.' || c == '-' || c == '_';
+	return strchr(BREAKABLE_CHARS, c) != NULL;
 }
 
 static void
@@ -990,15 +962,15 @@ drawlabel(Widget *widget, int index, int x, int y)
 		);
 	}
 	if (index == widget->highlight) {
-		XRenderFillRectangle(
-			widget->display,
-			PictOpOver,
-			widget->layers[LAYER_ICONS].pict,
-			&widget->colors[sel][COLOR_FG].chans,
-			x + widget->itemw / 2 - maxw / 2 - 1,
-			y + widget->itemh - (NLINES + 0.5) * widget->fonth - 1 + i * widget->fonth + 1,
-			maxw + 2, 1
-		);
+        XRenderFillRectangle(
+                widget->display,
+                PictOpOver,
+                widget->layers[LAYER_ICONS].pict,
+                &widget->colors[sel][COLOR_FG].chans,
+                x + widget->itemw / 2 - maxw / 2 - 1,
+                y + widget->itemh - (NLINES + HIGHLIGHT_OFFSET) * widget->fonth - 1 + i * widget->fonth + 1,
+                maxw + 2, 1
+        );
 	}
 	if (widget->issel != NULL && widget->issel[index]) {
 		XRenderFillRectangle(
@@ -1060,22 +1032,20 @@ drawitem(Widget *widget, int index)
 	);
 	drawicon(widget, index, x, y);
 	drawlabel(widget, index, x, y);
-	XRenderFillRectangle(
-		widget->display,
-		widget->issel[index] ? PictOpSrc : PictOpClear,
-		widget->layers[LAYER_SELALPHA].pict,
-		&(XRenderColor){
-			.red   = 0xFFFF,
-			.green = 0xFFFF,
-			.blue  = 0xFFFF,
-
-			/* opacity for color layer above selected items */
-			.alpha = 0xC000,
-		},
-		x, y,
-		widget->itemw,
-		widget->itemh - (NLINES + 1) * widget->fonth
-	);
+    XRenderFillRectangle(
+	widget->display,
+	widget->issel[index] ? PictOpSrc : PictOpClear,
+	widget->layers[LAYER_SELALPHA].pict,
+	&(XRenderColor){
+		.red   = 0xFFFF,
+		.green = 0xFFFF,
+		.blue  = 0xFFFF,
+		.alpha = SELECT_ALPHA,
+	},
+	x, y,
+	widget->itemw,
+	widget->itemh - (NLINES + 1) * widget->fonth
+);
 done:
 	etunlock(&widget->lock);
 	widget->redraw = True;
@@ -1744,6 +1714,8 @@ rectdraw(Widget *widget, int row, int ydiff, int x0, int y0, int x, int y)
 	h = (y0 > y) ? y0 - y : y - y0;
 	x = min(x0, x);
 	y = min(y0, y);
+
+	/* Border of selection rectangle */
 	XRenderFillRectangle(
 		widget->display,
 		PictOpSrc,
@@ -1757,6 +1729,8 @@ rectdraw(Widget *widget, int row, int ydiff, int x0, int y0, int x, int y)
 		x, y,
 		w + 1, h + 1
 	);
+
+	/* Interior fill of selection rectangle */
 	XRenderFillRectangle(
 		widget->display,
 		PictOpSrc,
@@ -1765,9 +1739,7 @@ rectdraw(Widget *widget, int row, int ydiff, int x0, int y0, int x, int y)
 			.red   = 0xFFFF,
 			.green = 0xFFFF,
 			.blue  = 0xFFFF,
-
-			/* opacity for color layer above rectangular selection */
-			.alpha = 0x4000,
+			.alpha = RECTSEL_ALPHA,
 		},
 		x + 1,
 		y + 1,
@@ -2000,58 +1972,58 @@ done:
 static int
 getgeometry(Widget *widget, XRectangle *rect)
 {
-	unsigned int width, height;
-	int x, y, flags, retval;
-	XrmDatabase xdb;
-	char *str, *geometry;
-	static XRectangle DEF_SIZE = {
-		.x = 0, .y = 0,
-		.width = 600 , .height = 460
-	};
+    unsigned int width, height;
+    int x, y, flags, retval;
+    XrmDatabase xdb;
+    char *str, *geometry;
+    static XRectangle DEF_SIZE = {
+        .x = 0, .y = 0,
+        .width = DEF_WIDTH, .height = DEF_HEIGHT
+    };
 
-	*rect = DEF_SIZE;
-	retval = 0;
-	if ((str = XResourceManagerString(widget->display)) == NULL)
-		return 0;
-	if ((xdb = loadxdb(widget, str)) == NULL)
-		return 0;
-	geometry = getresource(
-		xdb,
-		widget->application.class,
-		widget->application.name,
-		widget->resources[GEOMETRY].class,
-		widget->resources[GEOMETRY].name
-	);
-	if (geometry == NULL)
-		goto done;
-	flags = XParseGeometry(geometry, &x, &y, &width, &height);
-	if (FLAG(flags, WidthValue) && width > THUMBSIZE) {
-		rect->width = width;
-		retval |= USSize;
-	}
-	if (FLAG(flags, HeightValue) && height > THUMBSIZE) {
-		rect->height = height;
-		retval |= USSize;
-	}
-	if (FLAG(flags, XValue)) {
-		if (FLAG(flags, XNegative)) {
-			x += DisplayWidth(widget->display, widget->screen);
-			x -= rect->width;
-		}
-		rect->x = x;
-		retval |= USPosition;
-	}
-	if (FLAG(flags, YValue)) {
-		if (FLAG(flags, YNegative)) {
-			y += DisplayHeight(widget->display, widget->screen);
-			y -= rect->height;
-		}
-		rect->y = y;
-		retval |= USPosition;
-	}
+    *rect = DEF_SIZE;
+    retval = 0;
+    if ((str = XResourceManagerString(widget->display)) == NULL)
+        return 0;
+    if ((xdb = loadxdb(widget, str)) == NULL)
+        return 0;
+    geometry = getresource(
+            xdb,
+            widget->application.class,
+            widget->application.name,
+            widget->resources[GEOMETRY].class,
+            widget->resources[GEOMETRY].name
+            );
+    if (geometry == NULL)
+        goto done;
+    flags = XParseGeometry(geometry, &x, &y, &width, &height);
+    if (FLAG(flags, WidthValue) && width > THUMBSIZE) {
+        rect->width = width;
+        retval |= USSize;
+    }
+    if (FLAG(flags, HeightValue) && height > THUMBSIZE) {
+        rect->height = height;
+        retval |= USSize;
+    }
+    if (FLAG(flags, XValue)) {
+        if (FLAG(flags, XNegative)) {
+            x += DisplayWidth(widget->display, widget->screen);
+            x -= rect->width;
+        }
+        rect->x = x;
+        retval |= USPosition;
+    }
+    if (FLAG(flags, YValue)) {
+        if (FLAG(flags, YNegative)) {
+            y += DisplayHeight(widget->display, widget->screen);
+            y -= rect->height;
+        }
+        rect->y = y;
+        retval |= USPosition;
+    }
 done:
-	XrmDestroyDatabase(xdb);
-	return retval;
+    XrmDestroyDatabase(xdb);
+    return retval;
 }
 
 static Window
@@ -2919,8 +2891,8 @@ mainmode(Widget *widget, int *selitems, int *nitems, char **text)
 		if (!(ev.xmotion.state & Button1Mask))
 			continue;
 		/* 64: square of distance cursor must move to be considered a dnd */
-		if (diff(ev.xmotion.x, clickx) * diff(ev.xmotion.y, clicky) < 64)
-			continue;
+        if (diff(ev.xmotion.x, clickx) * diff(ev.xmotion.y, clicky) < DND_THRESHOLD)
+            continue;
 		if (clicki == 0)
 			continue;
 		if (clicki == -1)
@@ -3020,8 +2992,8 @@ initvisual(Widget *widget, struct Options *options)
 	success = XMatchVisualInfo(
 		widget->display,
 		widget->screen,
-		32,             /* preferred depth */
-		TrueColor,
+		PREFERRED_DEPTH,
+		PREFERRED_VISUAL,
 		&vinfo
 	);
 	colormap = success ? XCreateColormap(
@@ -3230,7 +3202,9 @@ inittheme(Widget *widget, struct Options *options)
 	}
 	loadresources(widget, XResourceManagerString(widget->display));
 	if (widget->fontset == NULL)
-		setfont(widget, NULL, 0.0);
+		setfont(widget,
+			DEF_FONT_FACE[0] ? DEF_FONT_FACE : NULL,
+			DEF_FONT_SIZE);
 	if (widget->fontset == NULL) {
 		warnx("could not load any font");
 		return RETURN_FAILURE;
@@ -3298,27 +3272,11 @@ initstreams(Widget *widget, struct Options *options)
 static int
 initmisc(Widget *widget, struct Options *options)
 {
+	static char *names[] = BUSY_CURSOR_NAMES;
+	
 	(void)options;
 
-	/*
-	 * The progress/half-busy cursor (rendered as the regular
-	 * pointing cursor with a spinning wheel or hourglass) is used
-	 * to indicate that some computation is in progress, but the
-	 * program still responds to user input.
-	 *
-	 * There is no default name for such cursor; and each theme may
-	 * use a different name for it.  We try all these possibilities
-	 * in turn.
-	 *
-	 * If all fail, we fallback to XC_watch, from default X11 cursor
-	 * set.  It is mostly used to show that a program is busy and is
-	 * unresponsive to user input.
-	 */
-	for (int i = 0; i < 3; i++) {
-		static char *names[] = {
-			"progress", "half-busy", "left_ptr_watch"
-		};
-
+	for (int i = 0; i < BUSY_CURSOR_COUNT; i++) {
 		widget->busycursor = XcursorLibraryLoadCursor(
 			widget->display, names[i]
 		);
@@ -3326,18 +3284,10 @@ initmisc(Widget *widget, struct Options *options)
 			break;
 	}
 	if (widget->busycursor == None)
-		widget->busycursor = XCreateFontCursor(widget->display, XC_watch);
+		widget->busycursor = XCreateFontCursor(widget->display, BUSY_CURSOR_FALLBACK);
 
-	/*
-	 * Detect property changes on root to watch X Resources.
-	 */
 	(void)XSelectInput(widget->display, widget->root, PropertyChangeMask);
 
-	/*
-	 * No need to check for errors here:
-	 * If cursor is None, XDefineCursor(3) fallback to default cursor.
-	 * If not watching resources, we'll just not reload theme on the fly.
-	 */
 	return RETURN_SUCCESS;
 }
 
@@ -3423,6 +3373,29 @@ widget_free(Widget *widget)
 	ctrlfnt_term();
 }
 
+/* Add this helper function BEFORE widget_create() */
+static XRenderColor
+parse_color(const char *hex)
+{
+	unsigned long val;
+	char *endp;
+
+	if (hex[0] == '#')
+		hex++;
+
+	val = strtoul(hex, &endp, 16);
+	if (*endp != '\0' || (endp - hex) != 6)
+		return (XRenderColor){ 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF };
+
+	return (XRenderColor){
+		.red   = ((val >> 16) & 0xFF) * 0x101,
+		.green = ((val >> 8) & 0xFF) * 0x101,
+		.blue  = (val & 0xFF) * 0x101,
+		.alpha = 0xFFFF
+	};
+}
+
+/* Now the widget_create function */
 Widget *
 widget_create(const char *class, const char *name, int argc, char *argv[], const char *resources[])
 {
@@ -3449,22 +3422,20 @@ widget_create(const char *class, const char *name, int argc, char *argv[], const
 		return NULL;
 	}
 
-#define COLOR(r,g,b) ((XRenderColor){ \
-	.red = 0x##r##FF, .green = 0x##g##FF, .blue = 0x##b##FF, .alpha = 0xFFFF \
-	})
 	*widget = (Widget){
 		.class = class,
-		.colors[SELECT_NOT][COLOR_BG].chans = COLOR(1D,20,21),
-		.colors[SELECT_NOT][COLOR_FG].chans = COLOR(E9,DA,B1),
-		.colors[SELECT_YES][COLOR_BG].chans = COLOR(28,28,28),
-		.colors[SELECT_YES][COLOR_FG].chans = COLOR(BA,AD,8F),
-		.status_enable = True,
-		.opacity = 0xFFFF,
+		.colors[SELECT_NOT][COLOR_BG].chans = parse_color(COLOR_NORMAL_BG),
+		.colors[SELECT_NOT][COLOR_FG].chans = parse_color(COLOR_NORMAL_FG),
+		.colors[SELECT_YES][COLOR_BG].chans = parse_color(COLOR_SELECT_BG),
+		.colors[SELECT_YES][COLOR_FG].chans = parse_color(COLOR_SELECT_FG),
+		.status_enable = DEF_STATUSBAR,
+		.opacity = (unsigned short)(DEF_OPACITY * 0xFFFF),
 		.lock = PTHREAD_MUTEX_INITIALIZER,
 		.highlight = -1,
 		.itemw = ITEM_WIDTH,
 		.cliresources = resources,
 	};
+
 	for (i = 0; i < LEN(initsteps); i++) {
 		if ((*initsteps[i])(widget, &options) == RETURN_FAILURE) {
 			widget_free(widget);
@@ -3626,8 +3597,13 @@ widget_thumb(Widget *widget, char *path, int item)
 	int w, h;
 	char buf[DATA_DEPTH];
 	unsigned char *data;
-	static unsigned char const PPM_HEADER[] = {'P', '6', '\n'};
-	static unsigned char const PPM_COLOR[] = {'2', '5', '5', '\n'};
+    static unsigned char const PPM_HEADER[] = PPM_SIGNATURE "\n";
+    static unsigned char const PPM_COLOR[] = {
+        '0' + (PPM_MAX_COLOR / 100),
+        '0' + ((PPM_MAX_COLOR / 10) % 10),
+        '0' + (PPM_MAX_COLOR % 10),
+        '\n'
+    };
 
 	if (item < 0 || item >= widget->nitems || widget->thumbs == NULL)
 		return;
