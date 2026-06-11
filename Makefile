@@ -4,9 +4,23 @@ PROG = xfm
 
 DEBUG_PROG = ${PROG:=_dbg}
 
+# ── Source files ───────────────────────────────────────────────
+# main.c     - arg parsing, event loop
+# dir.c      - directory listing, entry metadata, history
+# thumb.c    - thumbnail thread
+# drop.c     - drag-and-drop / context-menu subprocess
+# widget.c   - X11 widget (drawing, input, DnD protocol)
+# util.c     - safe wrappers (malloc, fork, …)
+# icons.c    - icon table (XPM data)
+
 OBJS = \
-	${PROG:=.o} \
-	widget.o util.o icons.o \
+	main.o \
+	dir.o \
+	thumb.o \
+	drop.o \
+	widget.o \
+	util.o \
+	icons.o \
 	control/dragndrop.o \
 	control/selection.o \
 	control/font.o
@@ -16,7 +30,7 @@ DEBUG_OBJS = ${OBJS:.o=.dbg}
 SRCS = ${OBJS:.o=.c}
 
 MANS = \
-	xfiles.1 \
+	xfm.1 \
 	control/ctrldnd.3 \
 	control/ctrlfnt.3 \
 	control/ctrlsel.3
@@ -30,6 +44,7 @@ WINICONS = \
 	icons/winicon32x32.abgr \
 	icons/winicon48x48.abgr \
 	icons/winicon64x64.abgr
+
 ICONS = \
 	icons/file-app.xpm \
 	icons/file-archive.xpm \
@@ -82,26 +97,40 @@ PROG_LDFLAGS = \
 DEBUG_FLAGS = \
 	-g -O0 -DDEBUG -Wall -Wextra -Wpedantic
 
+# ── Targets ───────────────────────────────────────────────────
+
 all: ${PROG}
+
 ${PROG}: ${OBJS}
 	${CC} -o $@ ${OBJS} ${PROG_LDFLAGS}
+
 .c.o:
 	${CC} ${PROG_CFLAGS} -o $@ -c $<
 
 debug: ${DEBUG_PROG}
+
 ${DEBUG_PROG}: ${DEBUG_OBJS}
 	${CC} -o $@ ${DEBUG_OBJS} ${PROG_LDFLAGS} ${DEBUG_FLAGS}
+
 .c.dbg:
 	${CC} ${PROG_CFLAGS} ${DEBUG_FLAGS} -o $@ -c $<
 
-# Brace expansion in makefile targets is a {GNU,BSD} extension.
-# Should we make this portable? (How?)
-control/selection.{dbg,o}: control/selection.h
-control/dragndrop.{dbg,o}: control/dragndrop.h control/selection.h
-control/font.{dbg,o}:      control/font.h
-xfiles.{dbg,o}:  util.h widget.h icons/file.xpm icons/folder.xpm
-widget.{dbg,o}:  util.h widget.h icons/x.xpm control/selection.h control/dragndrop.h control/font.h
+# ── Per-file dependencies ──────────────────────────────────────
+
+control/selection.{dbg,o}:  control/selection.h
+control/dragndrop.{dbg,o}:  control/dragndrop.h control/selection.h
+control/font.{dbg,o}:       control/font.h
+
+main.{dbg,o}:    config.h fm.h util.h widget.h icons.h dir.h thumb.h drop.h
+dir.{dbg,o}:     config.h fm.h util.h widget.h icons.h dir.h thumb.h
+thumb.{dbg,o}:   config.h fm.h util.h widget.h thumb.h
+drop.{dbg,o}:    config.h fm.h util.h widget.h dir.h drop.h
+widget.{dbg,o}:  util.h widget.h icons/x.xpm \
+                 control/selection.h control/dragndrop.h control/font.h
 icons.{dbg,o}:   ${ICONS} ${WINICONS}
+util.{dbg,o}:    util.h
+
+# ── Misc ──────────────────────────────────────────────────────
 
 lint: ${SCRIPTS} ${MANS}
 	-shellcheck ${SCRIPTS}
@@ -115,6 +144,5 @@ clean:
 
 distclean: clean
 	rm -f ${DEBUG_OBJS} ${DEBUG_PROG} ${DEBUG_PROG:=.core} tags
-	rm -f tags
 
 .PHONY: all debug lint clean distclean

@@ -1,3 +1,5 @@
+#ifndef ICONS_H
+#define ICONS_H
 /* file mode */
 enum Mode {
 	/* file type, 0x00 ~ 0x07 */
@@ -51,3 +53,4 @@ extern size_t   nwin_icons;
 extern size_t icon_for_updir;   /* icon for the parent directory */
 extern size_t icon_for_dir;     /* icon for child directories */
 extern size_t icon_for_file;    /* icon for files */
+#endif /* ICONS_H */

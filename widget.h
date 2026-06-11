@@ -1,3 +1,5 @@
+#ifndef WIDGET_H
+#define WIDGET_H
 typedef struct Scroll {
 	/* scroll position */
 	int row, ydiff;
@@ -64,3 +66,4 @@ void widget_thumb(Widget *widget, char *path, int index);
 void widget_free(Widget *widget);
 
 void widget_busy(Widget *widget);
+#endif /* WIDGET_H */
