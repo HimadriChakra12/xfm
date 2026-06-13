@@ -138,6 +138,7 @@ static const FtPatt ft_patterns[] = {
 	{ FT_DOCUMENT, "*.odp"   },
 	{ FT_DOCUMENT, "*.epub"  },
 	{ FT_DOCUMENT, "*.mobi"  },
+	{ FT_DOCUMENT, "*.md"  },
 
 	/* ── Archives ────────────────────────────────────────── */
 	{ FT_ARCHIVE,  "*.tar"   },

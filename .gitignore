@@ -13,3 +13,4 @@
 /src/thumb.o
 /src/util.o
 /src/widget.o
+/contextmenu/menu.o
