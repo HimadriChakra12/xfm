@@ -1,17 +1,17 @@
 .SUFFIXES: .c .o .dbg
 
-PROG = xfm
-
+PROG      = xfm
 DEBUG_PROG = ${PROG:=_dbg}
 
 # ── Source files ───────────────────────────────────────────────
-# main.c     - arg parsing, event loop
-# dir.c      - directory listing, entry metadata, history
-# thumb.c    - thumbnail thread
-# drop.c     - drag-and-drop / context-menu subprocess
-# widget.c   - X11 widget (drawing, input, DnD protocol)
-# util.c     - safe wrappers (malloc, fork, …)
-# icons.c    - icon table (XPM data)
+# main.c                   - arg parsing, event loop
+# src/dir.c                - directory listing, entry metadata, history
+# src/thumb.c              - thumbnail thread
+# src/drop.c               - drag-and-drop / context-menu subprocess
+# src/widget.c             - X11 widget (drawing, input, DnD protocol)
+# src/util.c               - safe wrappers (malloc, fork, …)
+# src/icons.c              - icon table (XPM data)
+# contextmenu/menu.c       - X11 context menu popup + dispatcher
 
 OBJS = \
 	main.o \
@@ -21,13 +21,13 @@ OBJS = \
 	src/widget.o \
 	src/util.o \
 	src/icons.o \
+	contextmenu/menu.o \
 	control/dragndrop.o \
 	control/selection.o \
 	control/font.o
 
 DEBUG_OBJS = ${OBJS:.o=.dbg}
-
-SRCS = ${OBJS:.o=.c}
+SRCS       = ${OBJS:.o=.c}
 
 MANS = \
 	xfm.1 \
@@ -97,7 +97,7 @@ PROG_LDFLAGS = \
 DEBUG_FLAGS = \
 	-g -O0 -DDEBUG -Wall -Wextra -Wpedantic
 
-# ── Targets ───────────────────────────────────────────────────
+# ── Targets ────────────────────────────────────────────────────
 
 all: ${PROG}
 
@@ -117,20 +117,39 @@ ${DEBUG_PROG}: ${DEBUG_OBJS}
 
 # ── Per-file dependencies ──────────────────────────────────────
 
-control/selection.{dbg,o}:  control/selection.h
-control/dragndrop.{dbg,o}:  control/dragndrop.h control/selection.h
-control/font.{dbg,o}:       control/font.h
+control/selection.o control/selection.dbg: \
+	control/selection.h
+control/dragndrop.o control/dragndrop.dbg: \
+	control/dragndrop.h control/selection.h
+control/font.o control/font.dbg: \
+	control/font.h
 
-main.{dbg,o}:    config.h fm.h util.h widget.h icons.h dir.h thumb.h drop.h
-dir.{dbg,o}:     config.h fm.h util.h widget.h icons.h dir.h thumb.h
-thumb.{dbg,o}:   config.h fm.h util.h widget.h thumb.h
-drop.{dbg,o}:    config.h fm.h util.h widget.h dir.h drop.h
-widget.{dbg,o}:  util.h widget.h icons/x.xpm \
-                 control/selection.h control/dragndrop.h control/font.h
-icons.{dbg,o}:   ${ICONS} ${WINICONS}
-util.{dbg,o}:    util.h
+main.o main.dbg: \
+	config.h src/fm.h src/util.h src/widget.h src/icons.h \
+	src/dir.h src/thumb.h src/drop.h \
+	contextmenu/menu.h contextmenu/menuconfig.h
 
-# ── Misc ──────────────────────────────────────────────────────
+src/dir.o src/dir.dbg: \
+	config.h src/fm.h src/util.h src/widget.h src/icons.h \
+	src/dir.h src/thumb.h
+src/thumb.o src/thumb.dbg: \
+	config.h src/fm.h src/util.h src/widget.h src/thumb.h
+src/drop.o src/drop.dbg: \
+	config.h src/fm.h src/util.h src/widget.h src/dir.h src/drop.h
+src/widget.o src/widget.dbg: \
+	config.h src/util.h src/widget.h src/icons.h \
+	control/selection.h control/dragndrop.h control/font.h
+src/icons.o src/icons.dbg: \
+	${ICONS} ${WINICONS}
+src/util.o src/util.dbg: \
+	src/util.h
+
+contextmenu/menu.o contextmenu/menu.dbg: \
+	contextmenu/menu.c contextmenu/menu.h \
+	contextmenu/menuconfig.h contextmenu/actions.h contextmenu/filetypes.h \
+	config.h src/fm.h src/util.h src/widget.h
+
+# ── Misc ───────────────────────────────────────────────────────
 
 lint: ${SCRIPTS} ${MANS}
 	-shellcheck ${SCRIPTS}

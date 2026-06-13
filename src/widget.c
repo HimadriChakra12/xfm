@@ -162,6 +162,7 @@ struct Widget {
 	int screen;
 	unsigned int depth;
 	unsigned short opacity;
+	int last_root_x, last_root_y; /* root coords of last Button3 press */
 
 	CtrlFontSet *fontset;
 
@@ -2856,6 +2857,8 @@ mainmode(Widget *widget, int *selitems, int *nitems, char **text)
 		} else if (ev.xbutton.button == Button3) {
 			if (mouse3click(widget, ev.xbutton.x, ev.xbutton.y) > 0)
 				*nitems = fillselitems(widget, selitems);
+			widget->last_root_x = ev.xbutton.x_root;
+			widget->last_root_y = ev.xbutton.y_root;
 			widget->redraw = True;
 			XUngrabPointer(widget->display, ev.xbutton.time);
 			XFlush(widget->display);
@@ -3294,6 +3297,26 @@ initmisc(Widget *widget, struct Options *options)
 /*
  * public routines
  */
+
+Display *
+widget_display(Widget *widget)
+{
+	return widget ? widget->display : NULL;
+}
+
+Window
+widget_window(Widget *widget)
+{
+	return widget ? widget->window : None;
+}
+
+void
+widget_context_pos(Widget *widget, int *rx, int *ry)
+{
+	if (!widget) { *rx = 0; *ry = 0; return; }
+	*rx = widget->last_root_x;
+	*ry = widget->last_root_y;
+}
 
 void
 widget_free(Widget *widget)

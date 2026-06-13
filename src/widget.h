@@ -1,5 +1,6 @@
 #ifndef WIDGET_H
 #define WIDGET_H
+#include <X11/Xlib.h>
 typedef struct Scroll {
 	/* scroll position */
 	int row, ydiff;
@@ -66,4 +67,9 @@ void widget_thumb(Widget *widget, char *path, int index);
 void widget_free(Widget *widget);
 
 void widget_busy(Widget *widget);
+
+/* Expose internals needed by the context menu (same display connection) */
+Display *widget_display(Widget *widget);
+Window   widget_window(Widget *widget);
+void     widget_context_pos(Widget *widget, int *root_x, int *root_y);
 #endif /* WIDGET_H */

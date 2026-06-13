@@ -22,6 +22,8 @@
 #include "src/dir.h"
 #include "src/thumb.h"
 #include "src/drop.h"
+#include "contextmenu/menuconfig.h"
+#include "contextmenu/menu.h"
 
 /* ── Open a regular file with the configured opener ─────────── */
 
@@ -175,8 +177,17 @@ main(int argc, char *argv[])
 			goto done;
 
 		case WIDGET_CONTEXT:
-			if (runcontext(&fm, MENU, nitems) == WIDGET_CLOSE)
-				goto done;
+			/*
+			 * Show the native X11 context menu popup.
+			 * ctx_show() handles filetype detection, menu drawing,
+			 * and command execution internally.  We always refresh
+			 * the directory view after any context action.
+			 */
+			{
+				int ctx_rx = 0, ctx_ry = 0;
+				widget_context_pos(fm.widget, &ctx_rx, &ctx_ry);
+				ctx_show(&fm, fm.selitems, nitems, ctx_rx, ctx_ry);
+			}
 			if (changedir(&fm, fm.cwd->path, false) == RETURN_FAILURE) {
 				exitval = EXIT_FAILURE;
 				goto done;
